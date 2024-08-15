@@ -4,13 +4,13 @@ version = "0.0.0"
 edition.workspace = true
 
 [dependencies]
+dungers_varint.workspace = true
 thiserror.workspace = true
-lazy_static.workspace = true
 
 [dev-dependencies]
 criterion.workspace = true
 criterion-cycles-per-byte.workspace = true
 
 [[bench]]
-name = "wrubit64"
+name = "ubit64"
 harness = false

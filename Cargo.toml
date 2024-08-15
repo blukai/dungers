@@ -8,8 +8,11 @@ members = [
 edition = "2021"
 
 [workspace.dependencies]
+# 1st party
+dungers_bitbuf = { path = "crates/dungers_bitbuf" }
+dungers_varint = { path = "crates/dungers_varint" }
+# 3rd party
 criterion = { version = "0.5.1", features = ["html_reports"] }
 criterion-cycles-per-byte = "0.6.1"
-lazy_static = "1.5.0"
 thiserror = "1.0.63"
 

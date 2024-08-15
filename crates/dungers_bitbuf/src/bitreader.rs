@@ -1,4 +1,6 @@
-use crate::{zigzag_decode32, zigzag_decode64, Error, Result, EXTRA_MASKS};
+use dungers_varint::{zigzag_decode32, zigzag_decode64};
+
+use crate::{Error, Result, EXTRA_MASKS};
 
 pub struct BitReader<'a> {
     data_bits: usize,
@@ -73,7 +75,7 @@ impl<'a> BitReader<'a> {
 
         let block1_idx = self.cur_bit >> 6;
 
-        let mut block1 = unsafe { *self.data.get_unchecked(block1_idx) };
+        let mut block1 = *unsafe { self.data.get_unchecked(block1_idx) };
         // get the bits we're interested in
         block1 >>= self.cur_bit & 63;
 
@@ -86,7 +88,7 @@ impl<'a> BitReader<'a> {
         } else {
             let extra_bits = self.cur_bit & 63;
 
-            let mut block2 = unsafe { *self.data.get_unchecked(block1_idx + 1) };
+            let mut block2 = *unsafe { self.data.get_unchecked(block1_idx + 1) };
             block2 &= EXTRA_MASKS[extra_bits];
 
             // no need to mask since we hit the end of the dword.

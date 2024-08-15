@@ -1,4 +1,6 @@
-use crate::{zigzag_encode32, zigzag_encode64, Error, Result, BIT_WRITE_MASKS, EXTRA_MASKS};
+use dungers_varint::{zigzag_encode32, zigzag_encode64};
+
+use crate::{Error, Result, BIT_WRITE_MASKS, EXTRA_MASKS};
 
 pub struct BitWriter<'a> {
     data_bits: usize,
@@ -77,7 +79,7 @@ impl<'a> BitWriter<'a> {
 
         // SAFETY: assert and check above ensure that we'll not go out of bounds.
 
-        let mut block1 = unsafe { *self.data.get_unchecked(block1_idx) };
+        let mut block1 = *unsafe { self.data.get_unchecked(block1_idx) };
         block1 &= BIT_WRITE_MASKS[bit_offset][n];
         block1 |= data << bit_offset;
         *unsafe { self.data.get_unchecked_mut(block1_idx) } = block1;
@@ -90,7 +92,7 @@ impl<'a> BitWriter<'a> {
 
             let block2_idx = block1_idx + 1;
 
-            let mut block2 = unsafe { *self.data.get_unchecked(block2_idx) };
+            let mut block2 = *unsafe { self.data.get_unchecked(block2_idx) };
             block2 &= BIT_WRITE_MASKS[0][n];
             block2 |= data;
             *unsafe { self.data.get_unchecked_mut(block2_idx) } = block2;

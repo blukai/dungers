@@ -1,3 +1,13 @@
+#[derive(Debug, thiserror::Error)]
+pub enum Error {
+    #[error("was about to overrun a buffer")]
+    Overflow,
+    #[error("malformed varint")]
+    MalformedVarint,
+}
+
+pub type Result<T> = std::result::Result<T, Error>;
+
 // public/bitvec.h
 // static int bitsForBitnum[]
 pub(crate) const BITS_FOR_BIT_NUM: [u64; 64] = {
@@ -50,26 +60,3 @@ pub(crate) const EXTRA_MASKS: [u64; 65] = {
     }
     extra_masks
 };
-
-// TOOD: move varint stuff into its own create possibly and put BitWriter's and BitReader's varint
-// methods behind the feature flag maybe?
-
-#[inline(always)]
-pub(crate) fn zigzag_encode32(n: i32) -> u32 {
-    ((n << 1) ^ (n >> 31)) as u32
-}
-
-#[inline(always)]
-pub(crate) fn zigzag_encode64(n: i64) -> u64 {
-    ((n << 1) ^ (n >> 63)) as u64
-}
-
-#[inline(always)]
-pub(crate) fn zigzag_decode32(n: u32) -> i32 {
-    (n >> 1) as i32 ^ -((n & 1) as i32)
-}
-
-#[inline(always)]
-pub(crate) fn zigzag_decode64(n: u64) -> i64 {
-    (n >> 1) as i64 ^ -((n & 1) as i64)
-}
