@@ -7,6 +7,7 @@ pub mod string;
 pub mod unmanagedarray;
 pub mod unmanagedexponentialarray;
 pub mod unmanagedhandlearray;
+pub mod unmanagedsortedarray;
 
 #[cfg(test)]
 pub(crate) mod testutil;
