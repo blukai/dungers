@@ -6,6 +6,7 @@ use core::{borrow, fmt, ops, slice};
 use alloc::{AllocError, Allocator};
 
 use crate::array::{GrowthMode, InsertError, PushError, PushErrorKind, grow_cap};
+use crate::panic_bounds_check;
 
 pub struct UnmanagedArray<T> {
     cap: usize,
@@ -213,8 +214,8 @@ impl<T> UnmanagedArray<T> {
         value: T,
     ) -> Result<(), InsertError<T>> {
         let len = self.len();
-        if index > self.len() {
-            return Err(InsertError::new_oob(index, len, value));
+        if index > len {
+            panic_bounds_check(index, len);
         }
 
         if let Err(alloc_error) = self.try_reserve_amortized(alloc, 1) {

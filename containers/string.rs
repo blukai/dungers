@@ -14,6 +14,7 @@ use crate::array::{
     try_range_from_bounds,
 };
 use crate::boxed::Box;
+use crate::panic_bounds_check;
 
 /// allows to compute the size and write [`fmt::Arguments`] into a raw buffer.
 ///
@@ -291,8 +292,8 @@ impl<M: ArrayMemory<u8>> String<M> {
         assert!(self.is_char_boundary(index));
 
         let len = self.len();
-        if index > self.len() {
-            return Err(InsertError::new_oob(index, len, s));
+        if index > len {
+            panic_bounds_check(index, len);
         }
 
         let s_len = s.len();

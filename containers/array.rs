@@ -11,6 +11,7 @@ use alloc::{AllocError, Allocator, eek};
 use dropguard::DropGuard;
 
 use crate::boxed::Box;
+use crate::panic_bounds_check;
 
 pub unsafe trait ArrayMemory<T> {
     fn ptr(&self) -> *mut T;
@@ -138,7 +139,6 @@ impl<T> fmt::Debug for PushError<T> {
 }
 
 pub enum InsertErrorKind {
-    OutOfBounds { index: usize, len: usize },
     OutOfMemory(AllocError),
 }
 
@@ -148,16 +148,11 @@ pub struct InsertError<T> {
 }
 
 impl<T> InsertError<T> {
-    fn new(kind: InsertErrorKind, value: T) -> Self {
-        Self { kind, value }
-    }
-
-    pub fn new_oob(index: usize, len: usize, value: T) -> Self {
-        Self::new(InsertErrorKind::OutOfBounds { index, len }, value)
-    }
-
     pub fn new_oom(alloc_error: AllocError, value: T) -> Self {
-        Self::new(InsertErrorKind::OutOfMemory(alloc_error), value)
+        Self {
+            kind: InsertErrorKind::OutOfMemory(alloc_error),
+            value,
+        }
     }
 
     #[track_caller]
@@ -167,10 +162,6 @@ impl<T> InsertError<T> {
                 kind: InsertErrorKind::OutOfMemory(alloc_error),
                 ..
             } => eek(*alloc_error),
-            InsertError {
-                kind: InsertErrorKind::OutOfBounds { index, len },
-                ..
-            } => panic!("out of bounds (index {index}, len {len})"),
         }
     }
 }
@@ -180,9 +171,6 @@ impl<T> Error for InsertError<T> {}
 impl<T> fmt::Display for InsertError<T> {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         match self.kind {
-            InsertErrorKind::OutOfBounds { index, len } => {
-                f.write_fmt(format_args!("out of bounds (index {index}, len {len})"))
-            }
             InsertErrorKind::OutOfMemory(ref alloc_error) => fmt::Display::fmt(alloc_error, f),
         }
     }
@@ -407,8 +395,8 @@ impl<T, M: ArrayMemory<T>> Array<T, M> {
     #[inline]
     pub fn try_insert(&mut self, index: usize, value: T) -> Result<(), InsertError<T>> {
         let len = self.len();
-        if index > self.len() {
-            return Err(InsertError::new_oob(index, len, value));
+        if index > len {
+            panic_bounds_check(index, len);
         }
 
         if let Err(alloc_error) = self.try_reserve_amortized(1) {
