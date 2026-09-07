@@ -29,6 +29,7 @@ where
     K: Borrow<Q>,
     Q: Ord,
 {
+    #[inline(always)]
     fn compare(&self, key: &Q) -> Ordering {
         Ord::cmp(self.borrow(), key)
     }
@@ -36,6 +37,64 @@ where
 
 // ----
 // sorted array map
+
+#[inline(always)]
+pub fn map_is_sorted<K, V>(slice: &[(K, V)]) -> bool
+where
+    K: SortedArrayCompare,
+{
+    slice.is_sorted_by(
+        #[inline]
+        |(a, _), (b, _)| a.compare(b) != Ordering::Greater,
+    )
+}
+
+#[inline(always)]
+pub fn map_contains<K, V, Q: ?Sized>(slice: &[(K, V)], key: &Q) -> bool
+where
+    K: SortedArrayCompare + SortedArrayCompare<Q>,
+{
+    slice
+        .binary_search_by(
+            #[inline]
+            |(k, _)| k.compare(key),
+        )
+        .is_ok()
+}
+
+#[inline(always)]
+pub fn map_get<'a, K, V, Q: ?Sized>(slice: &'a [(K, V)], key: &Q) -> Option<&'a V>
+where
+    K: SortedArrayCompare + SortedArrayCompare<Q>,
+{
+    slice
+        .binary_search_by(
+            #[inline]
+            |(k, _)| k.compare(key),
+        )
+        .ok()
+        .map(
+            #[inline]
+            |found| unsafe { &slice.get_unchecked(found).1 },
+        )
+}
+
+#[inline(always)]
+pub fn map_get_mut<'a, K, V, Q: ?Sized>(slice: &'a mut [(K, V)], key: &Q) -> Option<&'a mut V>
+where
+    K: SortedArrayCompare + SortedArrayCompare<Q>,
+{
+    slice
+        .binary_search_by(
+            #[inline]
+            |(k, _)| k.compare(key),
+        )
+        .ok()
+        .map(
+            #[inline]
+            |found| unsafe { &mut slice.get_unchecked_mut(found).1 },
+        )
+}
 
 pub struct SortedArrayMap<K, V, M: ArrayMemory<(K, V)>>(pub Array<(K, V), M>);
 
@@ -59,6 +118,17 @@ impl<K: SortedArrayCompare, V, M: ArrayMemory<(K, V)>> SortedArrayMap<K, V, M> {
         }
     }
 
+    pub fn remove<Q>(&mut self, key: &Q) -> Option<(K, V)>
+    where
+        K: SortedArrayCompare<Q>,
+        Q: ?Sized,
+    {
+        self.0
+            .binary_search_by(|(k, _)| k.compare(key))
+            .ok()
+            .and_then(|found| self.0.remove_ordered(found))
+    }
+
     // ----
     // extend from
 
@@ -74,41 +144,28 @@ impl<K: SortedArrayCompare, V, M: ArrayMemory<(K, V)>> SortedArrayMap<K, V, M> {
     // ----
     // array deviations
 
-    pub fn contains<Q: ?Sized>(&self, key: &Q) -> bool
+    pub fn contains<Q>(&self, key: &Q) -> bool
     where
         K: SortedArrayCompare<Q>,
+        Q: ?Sized,
     {
-        self.0.binary_search_by(|(k, _)| k.compare(key)).is_ok()
+        map_contains(&self.0, key)
     }
 
-    pub fn get<Q: ?Sized>(&self, key: &Q) -> Option<&V>
+    pub fn get<Q>(&self, key: &Q) -> Option<&V>
     where
         K: SortedArrayCompare<Q>,
+        Q: ?Sized,
     {
-        self.0
-            .binary_search_by(|(k, _)| k.compare(key))
-            .ok()
-            .map(|found| unsafe { &self.0.get_unchecked(found).1 })
+        map_get(&self.0, key)
     }
 
-    pub fn get_mut<Q: ?Sized>(&mut self, key: &Q) -> Option<&mut V>
+    pub fn get_mut<Q>(&mut self, key: &Q) -> Option<&mut V>
     where
         K: SortedArrayCompare<Q>,
+        Q: ?Sized,
     {
-        self.0
-            .binary_search_by(|(k, _)| k.compare(key))
-            .ok()
-            .map(|found| unsafe { &mut self.0.get_unchecked_mut(found).1 })
-    }
-
-    pub fn remove<Q: ?Sized>(&mut self, key: &Q) -> Option<(K, V)>
-    where
-        K: SortedArrayCompare<Q>,
-    {
-        self.0
-            .binary_search_by(|(k, _)| k.compare(key))
-            .ok()
-            .and_then(|found| self.0.remove_ordered(found))
+        map_get_mut(&mut self.0, key)
     }
 }
 
@@ -168,6 +225,30 @@ pub type SpillableSortedArrayMap<K, V, const N: usize, A: Allocator> =
 // ----
 // sorted array set
 
+#[inline(always)]
+pub fn set_is_sorted<T>(slice: &[T]) -> bool
+where
+    T: SortedArrayCompare,
+{
+    slice.is_sorted_by(
+        #[inline]
+        |a, b| a.compare(b) != Ordering::Greater,
+    )
+}
+
+#[inline(always)]
+pub fn set_contains<T, Q: ?Sized>(slice: &[T], value: &Q) -> bool
+where
+    T: SortedArrayCompare + SortedArrayCompare<Q>,
+{
+    slice
+        .binary_search_by(
+            #[inline]
+            |v| v.compare(value),
+        )
+        .is_ok()
+}
+
 pub struct SortedArraySet<T, M: ArrayMemory<T>>(pub Array<T, M>);
 
 impl<T, M: ArrayMemory<T>> SortedArraySet<T, M> {
@@ -189,6 +270,16 @@ impl<T: SortedArrayCompare, M: ArrayMemory<T>> SortedArraySet<T, M> {
         }
     }
 
+    pub fn remove<Q: ?Sized>(&mut self, value: &Q) -> Option<T>
+    where
+        T: SortedArrayCompare<Q>,
+    {
+        self.0
+            .binary_search_by(|v| v.compare(value))
+            .ok()
+            .and_then(|found| self.0.remove_ordered(found))
+    }
+
     // ----
     // extend from
 
@@ -208,17 +299,7 @@ impl<T: SortedArrayCompare, M: ArrayMemory<T>> SortedArraySet<T, M> {
     where
         T: SortedArrayCompare<Q>,
     {
-        self.0.binary_search_by(|v| v.compare(value)).is_ok()
-    }
-
-    pub fn remove<Q: ?Sized>(&mut self, value: &Q) -> Option<T>
-    where
-        T: SortedArrayCompare<Q>,
-    {
-        self.0
-            .binary_search_by(|v| v.compare(value))
-            .ok()
-            .and_then(|found| self.0.remove_ordered(found))
+        set_contains(&self.0, value)
     }
 }
 

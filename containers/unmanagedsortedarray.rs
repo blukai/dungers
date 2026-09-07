@@ -4,7 +4,7 @@ use core::{fmt, mem};
 use alloc::{AllocError, Allocator};
 
 use crate::array::InsertError;
-use crate::sortedarray::SortedArrayCompare;
+use crate::sortedarray::{self, SortedArrayCompare};
 use crate::unmanagedarray::UnmanagedArray;
 
 // ----
@@ -33,6 +33,16 @@ impl<K: SortedArrayCompare, V> UnmanagedSortedArrayMap<K, V> {
         }
     }
 
+    pub fn remove<Q: ?Sized>(&mut self, key: &Q) -> Option<(K, V)>
+    where
+        K: SortedArrayCompare<Q>,
+    {
+        self.0
+            .binary_search_by(|(k, _)| k.compare(key))
+            .ok()
+            .and_then(|found| self.0.remove_ordered(found))
+    }
+
     // ----
     // extend from
 
@@ -53,37 +63,21 @@ impl<K: SortedArrayCompare, V> UnmanagedSortedArrayMap<K, V> {
     where
         K: SortedArrayCompare<Q>,
     {
-        self.0.binary_search_by(|(k, _)| k.compare(key)).is_ok()
+        sortedarray::map_contains(&self.0, key)
     }
 
     pub fn get<Q: ?Sized>(&self, key: &Q) -> Option<&V>
     where
         K: SortedArrayCompare<Q>,
     {
-        self.0
-            .binary_search_by(|(k, _)| k.compare(key))
-            .ok()
-            .map(|found| unsafe { &self.0.get_unchecked(found).1 })
+        sortedarray::map_get(&self.0, key)
     }
 
     pub fn get_mut<Q: ?Sized>(&mut self, key: &Q) -> Option<&mut V>
     where
         K: SortedArrayCompare<Q>,
     {
-        self.0
-            .binary_search_by(|(k, _)| k.compare(key))
-            .ok()
-            .map(|found| unsafe { &mut self.0.get_unchecked_mut(found).1 })
-    }
-
-    pub fn remove<Q: ?Sized>(&mut self, key: &Q) -> Option<(K, V)>
-    where
-        K: SortedArrayCompare<Q>,
-    {
-        self.0
-            .binary_search_by(|(k, _)| k.compare(key))
-            .ok()
-            .and_then(|found| self.0.remove_ordered(found))
+        sortedarray::map_get_mut(&mut self.0, key)
     }
 }
 
@@ -117,6 +111,16 @@ impl<T: SortedArrayCompare> UnmanagedSortedArraySet<T> {
         }
     }
 
+    pub fn remove<Q: ?Sized>(&mut self, value: &Q) -> Option<T>
+    where
+        T: SortedArrayCompare<Q>,
+    {
+        self.0
+            .binary_search_by(|v| v.compare(value))
+            .ok()
+            .and_then(|found| self.0.remove_ordered(found))
+    }
+
     // ----
     // extend from
 
@@ -137,17 +141,7 @@ impl<T: SortedArrayCompare> UnmanagedSortedArraySet<T> {
     where
         T: SortedArrayCompare<Q>,
     {
-        self.0.binary_search_by(|v| v.compare(value)).is_ok()
-    }
-
-    pub fn remove<Q: ?Sized>(&mut self, value: &Q) -> Option<T>
-    where
-        T: SortedArrayCompare<Q>,
-    {
-        self.0
-            .binary_search_by(|v| v.compare(value))
-            .ok()
-            .and_then(|found| self.0.remove_ordered(found))
+        sortedarray::set_contains(&self.0, value)
     }
 }
 
